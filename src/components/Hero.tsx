@@ -5,12 +5,17 @@ import { ChevronRight } from 'lucide-react';
 
 const Hero = () => {
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
   const artistTypes = ["Musicians", "DJs", "Dancers", "Comedians", "MCs"];
 
   useEffect(() => {
+    // Start animating text rotation
     const interval = setInterval(() => {
       setCurrentTextIndex((prevIndex) => (prevIndex + 1) % artistTypes.length);
     }, 3000);
+    
+    // Trigger entrance animation
+    setIsVisible(true);
     
     return () => clearInterval(interval);
   }, []);
@@ -25,9 +30,9 @@ const Hero = () => {
         <div className="absolute top-80 left-[60%] h-28 w-28 rounded-full bg-accent/20 animate-float" style={{ animationDelay: '3s' }}></div>
       </div>
       
-      <div className="container px-4 pt-24 pb-16 sm:px-6 sm:pt-32 sm:pb-24 lg:px-8 relative z-10">
+      <div className={`container px-4 pt-24 pb-16 sm:px-6 sm:pt-32 sm:pb-24 lg:px-8 relative z-10 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <div className="mx-auto max-w-4xl text-center">
-          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
+          <h1 className={`font-display text-4xl font-bold tracking-tight text-foreground sm:text-6xl animate-float-in`} style={{ animationDelay: '0.3s' }}>
             Book South Africa's Top
             <div className="h-16 sm:h-20 overflow-hidden mt-2">
               <div 
@@ -39,24 +44,24 @@ const Hero = () => {
                     key={index} 
                     className="h-16 sm:h-20 flex items-center justify-center"
                   >
-                    <span className="gradient-text">{type}</span>
+                    <span className="gradient-text animate-pulse-slow">{type}</span>
                   </div>
                 ))}
               </div>
             </div>
           </h1>
           
-          <p className="mt-6 text-lg leading-8 text-foreground/80 max-w-2xl mx-auto">
+          <p className={`mt-6 text-lg leading-8 text-foreground/80 max-w-2xl mx-auto animate-float-in`} style={{ animationDelay: '0.5s' }}>
             Discover and book South Africa's most talented artists directly.
             No more endless emails or phone calls. Find your perfect talent at the right price.
           </p>
           
-          <div className="mt-10 flex items-center justify-center gap-6">
-            <Button size="lg">
+          <div className={`mt-10 flex items-center justify-center gap-6 animate-float-in`} style={{ animationDelay: '0.7s' }}>
+            <Button size="lg" className="animate-bounce-subtle">
               Browse Artists
               <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" className="hover:scale-105 transition-transform">
               How It Works
             </Button>
           </div>

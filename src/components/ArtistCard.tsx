@@ -27,12 +27,12 @@ const ArtistCard = ({ artist, index }: ArtistCardProps) => {
   
   return (
     <div 
-      className="artist-card group"
+      className="artist-card group animate-scale-in"
       style={{ animationDelay: `${delay}ms` }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative">
+      <div className="relative overflow-hidden">
         <img 
           src={artist.image} 
           alt={artist.name} 
@@ -41,7 +41,7 @@ const ArtistCard = ({ artist, index }: ArtistCardProps) => {
         
         {artist.featured && (
           <Badge 
-            className="absolute top-2 left-2 bg-primary text-white"
+            className="absolute top-2 left-2 bg-primary text-white animate-pulse-slow"
           >
             Featured
           </Badge>
@@ -67,11 +67,11 @@ const ArtistCard = ({ artist, index }: ArtistCardProps) => {
         
         <div 
           className={`mt-4 transition-all duration-300 ${
-            (isHovered || isMobile) ? 'opacity-100 max-h-20' : 'opacity-0 max-h-0 overflow-hidden'
+            (isHovered || isMobile) ? 'opacity-100 max-h-20 animate-fade-in' : 'opacity-0 max-h-0 overflow-hidden'
           }`}
         >
           <Link to={`/artists/${artist.id}`}>
-            <Button className="w-full">View Profile</Button>
+            <Button className="w-full hover:scale-105 transition-transform">View Profile</Button>
           </Link>
         </div>
       </div>
