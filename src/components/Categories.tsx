@@ -2,6 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Link } from 'react-router-dom';
 
 interface Category {
   id: string;
@@ -49,7 +50,9 @@ const Categories = () => {
         </div>
         
         <div className="mt-10 text-center">
-          <Button>Explore All Categories</Button>
+          <Link to="/categories">
+            <Button>Explore All Categories</Button>
+          </Link>
         </div>
       </div>
     </div>

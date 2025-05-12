@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ArtistCard, { Artist } from './ArtistCard';
 import { Search } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 // Mock data for artists
 const allArtists: Artist[] = [
@@ -79,13 +81,34 @@ const allArtists: Artist[] = [
 
 const ArtistsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedLocation, setSelectedLocation] = useState('all');
   const [filteredArtists, setFilteredArtists] = useState<Artist[]>(allArtists);
+  const location = useLocation();
   
   // Get unique categories and locations for filters
   const categories = [...new Set(allArtists.map(artist => artist.category))];
   const locations = [...new Set(allArtists.map(artist => artist.location))];
+  
+  useEffect(() => {
+    // Check for category in URL query params
+    const params = new URLSearchParams(location.search);
+    const categoryParam = params.get('category');
+    
+    if (categoryParam) {
+      // Map the URL category param to the actual category
+      const categoryMap: Record<string, string> = {
+        'musicians': 'Musician',
+        'djs': 'DJ',
+        'comedians': 'Comedian',
+        // Add more mappings as needed
+      };
+      
+      if (categoryMap[categoryParam]) {
+        setSelectedCategory(categoryMap[categoryParam]);
+      }
+    }
+  }, [location]);
   
   useEffect(() => {
     let results = allArtists;
@@ -96,11 +119,11 @@ const ArtistsList = () => {
       );
     }
     
-    if (selectedCategory) {
+    if (selectedCategory && selectedCategory !== 'all') {
       results = results.filter(artist => artist.category === selectedCategory);
     }
     
-    if (selectedLocation) {
+    if (selectedLocation && selectedLocation !== 'all') {
       results = results.filter(artist => artist.location === selectedLocation);
     }
     
@@ -170,8 +193,8 @@ const ArtistsList = () => {
               variant="outline"
               onClick={() => {
                 setSearchTerm('');
-                setSelectedCategory('');
-                setSelectedLocation('');
+                setSelectedCategory('all');
+                setSelectedLocation('all');
               }}
             >
               Clear Filters
