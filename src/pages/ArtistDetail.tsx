@@ -1,4 +1,5 @@
-import { useParams } from 'react-router-dom';
+
+import { useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -133,7 +134,9 @@ const ArtistDetail = () => {
         <div className="container py-16 text-center">
           <h2 className="text-2xl font-bold mb-4">Artist Not Found</h2>
           <p className="mb-6">The artist you're looking for doesn't exist or has been removed.</p>
-          <Button as="a" href="/artists">Browse All Artists</Button>
+          <Link to="/artists">
+            <Button>Browse All Artists</Button>
+          </Link>
         </div>
         <Footer />
       </>

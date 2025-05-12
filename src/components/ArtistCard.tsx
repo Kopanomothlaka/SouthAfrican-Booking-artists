@@ -27,7 +27,7 @@ const ArtistCard = ({ artist, index }: ArtistCardProps) => {
   
   return (
     <div 
-      className="artist-card animate-fade-in"
+      className="artist-card group"
       style={{ animationDelay: `${delay}ms` }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -36,7 +36,7 @@ const ArtistCard = ({ artist, index }: ArtistCardProps) => {
         <img 
           src={artist.image} 
           alt={artist.name} 
-          className="artist-card-image"
+          className="artist-card-image group-hover:scale-105"
         />
         
         {artist.featured && (
