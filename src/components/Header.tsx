@@ -27,7 +27,12 @@ const Header = () => {
           <Button variant="outline" size="icon" className="rounded-full">
             <Search className="h-4 w-4" />
           </Button>
-          <Button>Book Now</Button>
+          <Link to="/login">
+            <Button variant="outline">Login</Button>
+          </Link>
+          <Link to="/join-as-artist">
+            <Button>Join as Artist</Button>
+          </Link>
         </div>
         
         <button 
@@ -74,7 +79,12 @@ const Header = () => {
               <Button variant="outline" size="icon" className="rounded-full">
                 <Search className="h-4 w-4" />
               </Button>
-              <Button>Book Now</Button>
+              <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                <Button variant="outline">Login</Button>
+              </Link>
+              <Link to="/join-as-artist" onClick={() => setIsMenuOpen(false)}>
+                <Button>Join as Artist</Button>
+              </Link>
             </div>
           </nav>
         </div>
