@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -9,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
+import { Upload } from 'lucide-react';
 
 const JoinAsArtist = () => {
   const [formData, setFormData] = useState({
@@ -23,6 +23,8 @@ const JoinAsArtist = () => {
     bio: '',
     experience: ''
   });
+  
+  const [idDocument, setIdDocument] = useState<File | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -30,6 +32,34 @@ const JoinAsArtist = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file type (accept only PDF, JPG, PNG)
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a PDF, JPG, or PNG file",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please upload a file smaller than 5MB",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setIdDocument(file);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,13 +74,22 @@ const JoinAsArtist = () => {
       return;
     }
 
+    if (!idDocument) {
+      toast({
+        title: "ID Document Required",
+        description: "Please upload your ID document",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // For now, just show success message
     toast({
       title: "Application Submitted!",
       description: "We'll review your application and get back to you soon.",
     });
     
-    console.log('Artist registration data:', formData);
+    console.log('Artist registration data:', { ...formData, idDocument: idDocument.name });
   };
 
   return (
@@ -205,6 +244,31 @@ const JoinAsArtist = () => {
                     rows={3}
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="idDocument">ID Document</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <Input
+                        id="idDocument"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleFileChange}
+                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                        required
+                      />
+                    </div>
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  {idDocument && (
+                    <p className="text-sm text-muted-foreground">
+                      Selected: {idDocument.name}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload your ID document (PDF, JPG, or PNG, max 5MB)
+                  </p>
                 </div>
 
                 <Button type="submit" className="w-full">

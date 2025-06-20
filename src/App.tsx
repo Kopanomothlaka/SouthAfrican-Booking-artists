@@ -11,6 +11,7 @@ import Categories from "./pages/Categories";
 import JoinAsArtist from "./pages/JoinAsArtist";
 import ArtistLogin from "./pages/ArtistLogin";
 import UserLogin from "./pages/UserLogin";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
