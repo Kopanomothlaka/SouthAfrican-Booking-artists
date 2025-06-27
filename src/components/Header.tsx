@@ -149,7 +149,7 @@ const Header = () => {
       <div className="container flex items-center justify-between h-16">
         <div className="flex items-center">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold gradient-text">BookSA</span>
+            <img src="/Energetic_Logo_with_Musical_Note-removebg-preview.png" alt="BookSA Logo" className="h-10 w-auto" />
           </Link>
         </div>
         

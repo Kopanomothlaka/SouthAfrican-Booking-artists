@@ -1,12 +1,13 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const artistTypes = ["Musicians", "DJs", "Dancers", "Comedians", "MCs"];
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Start animating text rotation
@@ -19,6 +20,14 @@ const Hero = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Scroll to How It Works section
+  const handleHowItWorksClick = () => {
+    const section = document.getElementById('how-it-works-section');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-secondary/50 to-background pb-10">
@@ -57,11 +66,11 @@ const Hero = () => {
           </p>
           
           <div className={`mt-10 flex items-center justify-center gap-6 animate-float-in`} style={{ animationDelay: '0.7s' }}>
-            <Button size="lg" className="animate-bounce-subtle">
+            <Button size="lg" className="animate-bounce-subtle" onClick={() => navigate('/artists')}>
               Browse Artists
               <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
-            <Button variant="outline" size="lg" className="hover:scale-105 transition-transform">
+            <Button variant="outline" size="lg" className="hover:scale-105 transition-transform" onClick={handleHowItWorksClick}>
               How It Works
             </Button>
           </div>

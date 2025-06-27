@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Calendar, MessageSquare } from 'lucide-react';
 
@@ -32,7 +31,7 @@ const steps: Step[] = [
 
 const HowItWorks = () => {
   return (
-    <div className="py-16 bg-gradient-to-b from-secondary/30 to-background">
+    <div id="how-it-works-section" className="py-16 bg-gradient-to-b from-secondary/30 to-background">
       <div className="container">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold font-display mb-4">How It Works</h2>
