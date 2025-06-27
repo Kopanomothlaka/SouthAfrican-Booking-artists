@@ -95,7 +95,7 @@ const About = () => {
                 <Link to="/artists">Browse Artists</Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link to="/join-artist">Join as Artist</Link>
+                <Link to="/join-as-artist">Join as Artist</Link>
               </Button>
             </div>
           </div>
@@ -362,7 +362,7 @@ const About = () => {
               <Link to="/artists">Browse Artists Now</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link to="/join-artist">Join as Artist</Link>
+              <Link to="/join-as-artist">Join as Artist</Link>
             </Button>
           </div>
         </div>
