@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -8,15 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
+import { Mail, Lock } from 'lucide-react';
 
 const UserLogin = () => {
-  const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: ''
+    password: ''
   });
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -26,25 +26,93 @@ const UserLogin = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!isLogin && formData.password !== formData.confirmPassword) {
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // First check if user is a client
+        const { data: clientData, error: clientError } = await supabase
+          .from('clients')
+          .select('full_name')
+          .eq('id', data.user.id)
+          .single();
+
+        if (!clientError && clientData) {
+          // User is a client
+          navigate('/client-dashboard');
+          toast({
+            title: "Welcome back!",
+            description: "You can now book amazing artists from your dashboard.",
+          });
+        } else {
+          // Check if user is in users table (for admin/artist)
+          const { data: userData } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', data.user.id)
+            .single();
+
+          if (userData?.role === 'admin') {
+            navigate('/admin');
+            toast({
+              title: "Welcome back!",
+              description: "You have been logged in as an admin.",
+            });
+          } else {
+            // Check if user is an artist
+            const { data: artistData } = await supabase
+              .from('artists')
+              .select('status')
+              .eq('id', data.user.id)
+              .single();
+
+            if (artistData) {
+              if (artistData.status === 'approved') {
+                navigate('/artist/dashboard');
+                toast({
+                  title: "Welcome back!",
+                  description: "You have been logged in to your artist dashboard.",
+                });
+              } else {
+                navigate('/pending-approval');
+                toast({
+                  title: "Account pending approval",
+                  description: "Your artist account is still being reviewed.",
+                });
+              }
+            } else {
+              // Default redirect for users without role
+              navigate('/artists');
+              toast({
+                title: "Welcome back!",
+                description: "You have been logged in successfully.",
+              });
+            }
+          }
+        }
+      }
+
+    } catch (error: any) {
+      console.error('Login error:', error);
       toast({
-        title: "Error",
-        description: "Passwords do not match",
+        title: "Login failed",
+        description: error.message,
         variant: "destructive"
       });
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    const action = isLogin ? 'Login' : 'Registration';
-    toast({
-      title: `${action} Successful!`,
-      description: isLogin ? "Welcome back! You can now book artists." : "Account created successfully! You can now book artists.",
-    });
-    
-    console.log(`User ${action.toLowerCase()} data:`, formData);
   };
 
   return (
@@ -55,102 +123,73 @@ const UserLogin = () => {
         <div className="container max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-display font-bold mb-4">
-              {isLogin ? 'Login' : 'Sign Up'}
+              Login
             </h1>
             <p className="text-foreground/70">
-              {isLogin 
-                ? 'Access your account to book amazing artists' 
-                : 'Create an account to start booking artists'
-              }
+              Access your account to book amazing artists
             </p>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>{isLogin ? 'Login to Your Account' : 'Create Your Account'}</CardTitle>
+              <CardTitle>Login to Your Account</CardTitle>
               <CardDescription>
-                {isLogin 
-                  ? 'Enter your credentials to access your bookings'
-                  : 'Fill in your details to get started'
-                }
+                Enter your credentials to access your account
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {!isLogin && (
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input
-                      id="fullName"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                      required={!isLogin}
-                    />
-                  </div>
-                )}
-
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                  />
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="your@email.com"
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                {!isLogin && (
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
+                      id="password"
+                      name="password"
                       type="password"
-                      value={formData.confirmPassword}
+                      value={formData.password}
                       onChange={handleInputChange}
-                      required={!isLogin}
+                      placeholder="Enter your password"
+                      className="pl-10"
+                      required
                     />
                   </div>
-                )}
+                </div>
 
-                {isLogin && (
-                  <div className="flex items-center justify-between">
-                    <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                      Forgot password?
-                    </Link>
-                  </div>
-                )}
+                <div className="flex items-center justify-between">
+                  <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                    Forgot password?
+                  </Link>
+                </div>
 
-                <Button type="submit" className="w-full">
-                  {isLogin ? 'Login' : 'Create Account'}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Logging in..." : "Login"}
                 </Button>
 
                 <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsLogin(!isLogin)}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {isLogin 
-                      ? "Don't have an account? Sign up" 
-                      : "Already have an account? Login"
-                    }
-                  </button>
+                  <p className="text-sm text-muted-foreground">
+                    Don't have an account?{' '}
+                    <Link to="/client-register" className="text-primary hover:underline">
+                      Sign up as a client
+                    </Link>
+                  </p>
                 </div>
 
                 <div className="relative">

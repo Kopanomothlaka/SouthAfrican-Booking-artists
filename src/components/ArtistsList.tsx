@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,89 +5,98 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import ArtistCard, { Artist } from './ArtistCard';
 import { Search } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-
-// Mock data for artists
-const allArtists: Artist[] = [
-  {
-    id: 1,
-    name: 'Black Coffee',
-    category: 'DJ',
-    image: 'https://images.unsplash.com/photo-1499364615650-ec38552f4f34?q=80&w=2072&auto=format&fit=crop',
-    fee: 'R25,000',
-    location: 'Johannesburg',
-    featured: true
-  },
-  {
-    id: 2,
-    name: 'Sho Madjozi',
-    category: 'Musician',
-    image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=2070&auto=format&fit=crop',
-    fee: 'R30,000',
-    location: 'Limpopo',
-    featured: true
-  },
-  {
-    id: 3,
-    name: 'Trevor Noah',
-    category: 'Comedian',
-    image: 'https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?q=80&w=1856&auto=format&fit=crop',
-    fee: 'R45,000',
-    location: 'Cape Town',
-    featured: true
-  },
-  {
-    id: 4,
-    name: 'Lira',
-    category: 'Musician',
-    image: 'https://images.unsplash.com/photo-1529518969858-8baa65152fc8?q=80&w=1932&auto=format&fit=crop',
-    fee: 'R35,000',
-    location: 'Pretoria',
-    featured: true
-  },
-  {
-    id: 5,
-    name: 'DJ Zinhle',
-    category: 'DJ',
-    image: 'https://images.unsplash.com/photo-1571935441005-72a3abac439e?q=80&w=1974&auto=format&fit=crop',
-    fee: 'R20,000',
-    location: 'Johannesburg'
-  },
-  {
-    id: 6,
-    name: 'AKA',
-    category: 'Musician',
-    image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=2070&auto=format&fit=crop',
-    fee: 'R40,000',
-    location: 'Durban'
-  },
-  {
-    id: 7,
-    name: 'Loyiso Gola',
-    category: 'Comedian',
-    image: 'https://images.unsplash.com/photo-1612731486606-2614b4d74921?q=80&w=1974&auto=format&fit=crop',
-    fee: 'R18,000',
-    location: 'Cape Town'
-  },
-  {
-    id: 8,
-    name: 'Heavy K',
-    category: 'DJ',
-    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1974&auto=format&fit=crop',
-    fee: 'R15,000',
-    location: 'East London'
-  },
-];
+import { supabase } from '@/lib/supabase';
 
 const ArtistsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedLocation, setSelectedLocation] = useState('all');
-  const [filteredArtists, setFilteredArtists] = useState<Artist[]>(allArtists);
+  const [filteredArtists, setFilteredArtists] = useState<Artist[]>([]);
+  const [allArtists, setAllArtists] = useState<Artist[]>([]);
+  const [loading, setLoading] = useState(true);
   const location = useLocation();
-  
+
+  // Fetch booking details from database
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch active bookings with artist information
+        const { data: bookingsData, error } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            artists!inner(
+              id,
+              artist_name,
+              full_name
+            ),
+            images:booking_images(*)
+          `)
+          .eq('is_active', true)
+          .eq('status', 'available')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching bookings:', error);
+          return;
+        }
+
+        // Transform booking data to match Artist interface
+        const transformedBookings: Artist[] = bookingsData.map((booking: any) => {
+          // Get the primary image or first image from the booking
+          let bookingImage = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=2070&auto=format&fit=crop'; // fallback
+          
+          if (booking.images && booking.images.length > 0) {
+            // Try to find the primary image first
+            const primaryImage = booking.images.find((img: any) => img.is_primary);
+            if (primaryImage) {
+              bookingImage = primaryImage.image_url;
+            } else {
+              // If no primary image, use the first image
+              bookingImage = booking.images[0].image_url;
+            }
+          }
+
+          return {
+            id: booking.id,
+            name: booking.artists.artist_name || booking.artists.full_name || booking.title,
+            category: getCategoryLabel(booking.category),
+            image: bookingImage,
+            fee: booking.booking_fee ? `R${booking.booking_fee.toLocaleString()}` : 'Contact for pricing',
+            location: booking.location || 'Location not specified',
+            featured: false
+          };
+        });
+
+        setAllArtists(transformedBookings);
+        setFilteredArtists(transformedBookings);
+      } catch (error) {
+        console.error('Error fetching bookings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookings();
+  }, []);
+
   // Get unique categories and locations for filters
   const categories = [...new Set(allArtists.map(artist => artist.category))];
   const locations = [...new Set(allArtists.map(artist => artist.location))];
+
+  const getCategoryLabel = (category: string) => {
+    const categoryMap: { [key: string]: string } = {
+      'musicians': 'Musician',
+      'djs': 'DJ',
+      'dancers': 'Dancer',
+      'comedians': 'Comedian',
+      'mcs': 'MC',
+      'bands': 'Band'
+    };
+    return categoryMap[category] || category;
+  };
   
   useEffect(() => {
     // Check for category in URL query params
@@ -101,7 +109,9 @@ const ArtistsList = () => {
         'musicians': 'Musician',
         'djs': 'DJ',
         'comedians': 'Comedian',
-        // Add more mappings as needed
+        'dancers': 'Dancer',
+        'mcs': 'MC',
+        'bands': 'Band'
       };
       
       if (categoryMap[categoryParam]) {
@@ -128,7 +138,49 @@ const ArtistsList = () => {
     }
     
     setFilteredArtists(results);
-  }, [searchTerm, selectedCategory, selectedLocation]);
+  }, [searchTerm, selectedCategory, selectedLocation, allArtists]);
+
+  if (loading) {
+    return (
+      <div className="py-16">
+        <div className="container">
+          <div className="flex flex-col md:flex-row justify-between gap-6 mb-10">
+            <div className="w-full md:w-1/3">
+              <div className="relative">
+                <Input
+                  placeholder="Search artists..."
+                  disabled
+                  className="pl-10"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/50" />
+              </div>
+            </div>
+            
+            <div className="w-full md:w-1/3">
+              <Select disabled>
+                <SelectTrigger>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+              </Select>
+            </div>
+            
+            <div className="w-full md:w-1/3">
+              <Select disabled>
+                <SelectTrigger>
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="text-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-foreground/70">Loading booking offers...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="py-16">
@@ -187,18 +239,25 @@ const ArtistsList = () => {
           </div>
         ) : (
           <div className="text-center py-16">
-            <h3 className="text-xl font-semibold mb-2">No artists found</h3>
-            <p className="text-foreground/70 mb-4">Try adjusting your search criteria</p>
-            <Button 
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedCategory('all');
-                setSelectedLocation('all');
-              }}
-            >
-              Clear Filters
-            </Button>
+            <h3 className="text-xl font-semibold mb-2">No booking offers found</h3>
+            <p className="text-foreground/70 mb-4">
+              {allArtists.length === 0 
+                ? "No booking offers are currently available" 
+                : "Try adjusting your search criteria"
+              }
+            </p>
+            {allArtists.length > 0 && (
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategory('all');
+                  setSelectedLocation('all');
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
           </div>
         )}
       </div>

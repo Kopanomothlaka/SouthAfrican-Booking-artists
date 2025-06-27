@@ -1,52 +1,119 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import ArtistCard, { Artist } from './ArtistCard';
 import { ChevronRight } from 'lucide-react';
-
-// Mock data for featured artists
-const featuredArtists: Artist[] = [
-  {
-    id: 1,
-    name: 'Black Coffee',
-    category: 'DJ',
-    image: 'https://images.unsplash.com/photo-1499364615650-ec38552f4f34?q=80&w=2072&auto=format&fit=crop',
-    fee: 'R25,000',
-    location: 'Johannesburg',
-    featured: true
-  },
-  {
-    id: 2,
-    name: 'Sho Madjozi',
-    category: 'Musician',
-    image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=2070&auto=format&fit=crop',
-    fee: 'R30,000',
-    location: 'Limpopo',
-    featured: true
-  },
-  {
-    id: 3,
-    name: 'Trevor Noah',
-    category: 'Comedian',
-    image: 'https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?q=80&w=1856&auto=format&fit=crop',
-    fee: 'R45,000',
-    location: 'Cape Town',
-    featured: true
-  },
-  {
-    id: 4,
-    name: 'Lira',
-    category: 'Musician',
-    image: 'https://images.unsplash.com/photo-1529518969858-8baa65152fc8?q=80&w=1932&auto=format&fit=crop',
-    fee: 'R35,000',
-    location: 'Pretoria',
-    featured: true
-  },
-];
+import { supabase } from '@/lib/supabase';
 
 const FeaturedArtists = () => {
-  const [visibleCount, setVisibleCount] = useState(4);
-  const hasMore = visibleCount < featuredArtists.length;
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(5);
+
+  useEffect(() => {
+    const fetchFeaturedBookings = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch active bookings with artist information (same as ArtistsList)
+        const { data: bookingsData, error } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            artists!inner(
+              id,
+              artist_name,
+              full_name
+            ),
+            images:booking_images(*)
+          `)
+          .eq('is_active', true)
+          .eq('status', 'available')
+          .order('created_at', { ascending: false })
+          .limit(5); // Limit to top 5
+
+        if (error) {
+          console.error('Error fetching bookings:', error);
+          return;
+        }
+
+        // Transform booking data to match Artist interface (same as ArtistsList)
+        const transformedBookings: Artist[] = bookingsData.map((booking: any, index) => {
+          // Get the primary image or first image from the booking
+          let bookingImage = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=2070&auto=format&fit=crop'; // fallback
+          
+          if (booking.images && booking.images.length > 0) {
+            // Try to find the primary image first
+            const primaryImage = booking.images.find((img: any) => img.is_primary);
+            if (primaryImage) {
+              bookingImage = primaryImage.image_url;
+            } else {
+              // If no primary image, use the first image
+              bookingImage = booking.images[0].image_url;
+            }
+          }
+
+          return {
+            id: booking.id,
+            name: booking.artists.artist_name || booking.artists.full_name || booking.title,
+            category: getCategoryLabel(booking.category),
+            image: bookingImage,
+            fee: booking.booking_fee ? `R${booking.booking_fee.toLocaleString()}` : 'Contact for pricing',
+            location: booking.location || 'Location not specified',
+            featured: index < 5 // First 5 are featured
+          };
+        });
+
+        setArtists(transformedBookings);
+      } catch (error) {
+        console.error('Error fetching bookings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedBookings();
+  }, []);
+
+  const getCategoryLabel = (category: string) => {
+    const categoryMap: { [key: string]: string } = {
+      'musicians': 'Musician',
+      'djs': 'DJ',
+      'dancers': 'Dancer',
+      'comedians': 'Comedian',
+      'mcs': 'MC',
+      'bands': 'Band'
+    };
+    return categoryMap[category] || category;
+  };
+
+  const hasMore = visibleCount < artists.length;
+  
+  if (loading) {
+    return (
+      <div className="py-16 bg-gradient-to-b from-background to-secondary/30">
+        <div className="container">
+          <div className="flex items-center justify-between mb-10">
+            <h2 className="text-3xl font-bold font-display">Featured Artists</h2>
+            <Button variant="outline">
+              View All
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(5)].map((_, index) => (
+              <div key={index} className="animate-pulse">
+                <div className="bg-gray-200 h-48 rounded-t-lg"></div>
+                <div className="p-4 bg-white rounded-b-lg">
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="py-16 bg-gradient-to-b from-background to-secondary/30">
@@ -59,20 +126,28 @@ const FeaturedArtists = () => {
           </Button>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredArtists.slice(0, visibleCount).map((artist, index) => (
-            <ArtistCard key={artist.id} artist={artist} index={index} />
-          ))}
-        </div>
-        
-        {hasMore && (
-          <div className="mt-10 text-center">
-            <Button 
-              variant="outline"
-              onClick={() => setVisibleCount(prev => prev + 4)}
-            >
-              Load More
-            </Button>
+        {artists.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {artists.slice(0, visibleCount).map((artist, index) => (
+                <ArtistCard key={artist.id} artist={artist} index={index} />
+              ))}
+            </div>
+            
+            {hasMore && (
+              <div className="mt-10 text-center">
+                <Button 
+                  variant="outline"
+                  onClick={() => setVisibleCount(prev => prev + 5)}
+                >
+                  Load More
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No featured artists available at the moment.</p>
           </div>
         )}
       </div>

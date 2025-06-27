@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { Upload } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const JoinAsArtist = () => {
   const [formData, setFormData] = useState({
@@ -62,7 +63,7 @@ const JoinAsArtist = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
@@ -83,13 +84,81 @@ const JoinAsArtist = () => {
       return;
     }
 
-    // For now, just show success message
-    toast({
-      title: "Application Submitted!",
-      description: "We'll review your application and get back to you soon.",
-    });
-    
-    console.log('Artist registration data:', { ...formData, idDocument: idDocument.name });
+    try {
+      // 1. Sign up the user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName,
+            role: 'artist'
+          }
+        }
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("User registration failed.");
+
+      const user = authData.user;
+
+      // 2. Add user to users table with artist role
+      const { error: userError } = await supabase
+        .from('users')
+        .insert({
+          id: user.id,
+          full_name: formData.fullName,
+          email: formData.email,
+          role: 'artist'
+        });
+
+      if (userError) throw userError;
+
+      // 3. Upload ID document
+      const fileExt = idDocument.name.split('.').pop();
+      const fileName = `id-document.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('artist-documents')
+        .upload(filePath, idDocument);
+
+      if (uploadError) throw uploadError;
+
+      // 4. Save artist profile to database
+      const { error: dbError } = await supabase
+        .from('artists')
+        .insert({
+          id: user.id, // Link to the auth user
+          full_name: formData.fullName,
+          artist_name: formData.artistName,
+          email: formData.email,
+          phone: formData.phone,
+          category: formData.category,
+          location: formData.location,
+          bio: formData.bio,
+          experience: formData.experience,
+          id_document_url: filePath,
+        });
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Application Submitted!",
+        description: "Please check your email to verify your account. We'll review your application and get back to you soon.",
+      });
+
+      // Optionally, you can reset the form here
+      // setFormData({ ...initial state... });
+      // setIdDocument(null);
+
+    } catch (error: any) {
+      toast({
+        title: "Registration Error",
+        description: error.error_description || error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   return (

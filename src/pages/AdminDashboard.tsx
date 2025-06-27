@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { Eye, Check, X, Download } from 'lucide-react';
+import { Eye, Check, X, Download, LogOut } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -16,8 +16,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-// Mock data for artist applications
-const mockApplications = [
+// Mock data for artist applications - This will be replaced by API call
+const mockApplications: any[] = [
   {
     id: 1,
     fullName: 'John Doe',
@@ -56,33 +56,134 @@ const mockApplications = [
   }
 ];
 
-const AdminDashboard = () => {
-  const [applications, setApplications] = useState(mockApplications);
-  const [selectedApplication, setSelectedApplication] = useState<any>(null);
+// Define a type for our artist application data
+export type ArtistApplication = {
+  id: string; // user id
+  created_at: string;
+  full_name: string;
+  artist_name: string;
+  email: string;
+  phone: string;
+  category: string;
+  location: string;
+  bio: string;
+  experience: string;
+  id_document_url: string;
+  status: 'pending' | 'approved' | 'rejected';
+};
 
-  const handleApprove = (id: number) => {
-    setApplications(prev => 
-      prev.map(app => 
-        app.id === id ? { ...app, status: 'approved' } : app
-      )
-    );
-    toast({
-      title: "Application Approved",
-      description: "Artist has been approved and notified.",
-    });
+const AdminDashboard = () => {
+  const [applications, setApplications] = useState<ArtistApplication[]>([]);
+  const [selectedApplication, setSelectedApplication] = useState<ArtistApplication | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [adminInfo, setAdminInfo] = useState<{ full_name: string; email: string } | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchAdminInfo = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('full_name, email')
+          .eq('id', user.id)
+          .single();
+        if (!error && data) {
+          setAdminInfo(data);
+        }
+      }
+    };
+
+    fetchAdminInfo();
+  }, []);
+
+  useEffect(() => {
+    const fetchApplications = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('artists')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        toast({
+          title: "Error fetching applications",
+          description: error.message,
+          variant: 'destructive',
+        });
+        console.error('Error fetching applications:', error);
+      } else {
+        setApplications(data as ArtistApplication[]);
+      }
+      setLoading(false);
+    };
+
+    fetchApplications();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      // Sign out from Supabase Auth
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error:', error);
+      }
+      
+      // Navigate to admin login page
+      navigate('/admin-login');
+      
+    } catch (error) {
+      console.error('Unexpected logout error:', error);
+      navigate('/admin-login');
+    }
   };
 
-  const handleReject = (id: number) => {
-    setApplications(prev => 
-      prev.map(app => 
-        app.id === id ? { ...app, status: 'rejected' } : app
-      )
-    );
-    toast({
-      title: "Application Rejected",
-      description: "Artist has been notified of the rejection.",
-      variant: "destructive"
-    });
+  const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected') => {
+    const { error } = await supabase
+      .from('artists')
+      .update({ status })
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: `Failed to ${status === 'approved' ? 'approve' : 'reject'} application`,
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      setApplications(prev =>
+        prev.map(app => (app.id === id ? { ...app, status } : app))
+      );
+      toast({
+        title: `Application ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+        description: `Artist has been notified.`,
+      });
+    }
+  };
+
+  const handleDownloadId = async (filePath: string) => {
+    const { data, error } = await supabase.storage
+      .from('artist-documents')
+      .download(filePath);
+
+    if (error) {
+      toast({
+        title: "Error downloading file",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const url = URL.createObjectURL(data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filePath.split('/').pop() || 'id-document');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getStatusBadge = (status: string) => {
@@ -104,19 +205,40 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      {/* Simple Header */}
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <h1 className="text-xl font-bold">Afri-Art Booking Hub - Admin</h1>
+          </div>
+          <Button variant="destructive" onClick={handleLogout}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </header>
       
       <div className="py-16">
         <div className="container">
-          <div className="mb-8">
-            <h1 className="text-4xl font-display font-bold mb-4">Admin Dashboard</h1>
-            <p className="text-foreground/70">
-              Manage artist registrations and platform settings
-            </p>
+          {/* Admin Info Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-4xl font-display font-bold mb-4">Admin Dashboard</h1>
+              <p className="text-foreground/70">
+                Manage artist registrations and platform settings
+              </p>
+            </div>
+            <div className="text-right">
+              {adminInfo && (
+                <div className="mb-2 text-sm text-foreground/70">
+                  Logged in as: <span className="font-semibold">{adminInfo.full_name}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Pending Applications</CardTitle>
@@ -149,6 +271,22 @@ const AdminDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  className="w-full" 
+                  variant="destructive"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Applications Table */}
@@ -173,53 +311,63 @@ const AdminDashboard = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {applications.map((application) => (
-                    <TableRow key={application.id}>
-                      <TableCell className="font-medium">
-                        {application.artistName}
-                      </TableCell>
-                      <TableCell>{application.fullName}</TableCell>
-                      <TableCell className="capitalize">
-                        {application.category.replace('s', '')}
-                      </TableCell>
-                      <TableCell>{application.location}</TableCell>
-                      <TableCell>
-                        {getStatusBadge(application.status)}
-                      </TableCell>
-                      <TableCell>{application.submittedAt}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedApplication(application)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {application.status === 'pending' && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleApprove(application.id)}
-                                className="text-green-600 hover:text-green-700"
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleReject(application.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center">
+                        Loading applications...
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    applications.map((application) => (
+                      <TableRow key={application.id}>
+                        <TableCell className="font-medium">
+                          {application.artist_name}
+                        </TableCell>
+                        <TableCell>{application.full_name}</TableCell>
+                        <TableCell className="capitalize">
+                          {application.category?.replace('s', '')}
+                        </TableCell>
+                        <TableCell>{application.location}</TableCell>
+                        <TableCell>
+                          {getStatusBadge(application.status)}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(application.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedApplication(application)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {application.status === 'pending' && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleUpdateStatus(application.id, 'approved')}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleUpdateStatus(application.id, 'rejected')}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -239,11 +387,11 @@ const AdminDashboard = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="font-semibold">Full Name</Label>
-                      <p>{selectedApplication.fullName}</p>
+                      <p>{selectedApplication.full_name}</p>
                     </div>
                     <div>
                       <Label className="font-semibold">Artist Name</Label>
-                      <p>{selectedApplication.artistName}</p>
+                      <p>{selectedApplication.artist_name}</p>
                     </div>
                     <div>
                       <Label className="font-semibold">Email</Label>
@@ -255,63 +403,66 @@ const AdminDashboard = () => {
                     </div>
                     <div>
                       <Label className="font-semibold">Category</Label>
-                      <p className="capitalize">{selectedApplication.category}</p>
+                      <p className="capitalize">{selectedApplication.category?.replace('s', '')}</p>
                     </div>
                     <div>
                       <Label className="font-semibold">Location</Label>
                       <p>{selectedApplication.location}</p>
                     </div>
                   </div>
-                  
+                  <div>
+                    <Label className="font-semibold">Bio</Label>
+                    <p className="text-sm text-foreground/80">{selectedApplication.bio}</p>
+                  </div>
+                  <div>
+                    <Label className="font-semibold">Experience</Label>
+                    <p className="text-sm text-foreground/80">{selectedApplication.experience}</p>
+                  </div>
                   <div>
                     <Label className="font-semibold">ID Document</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm">{selectedApplication.idDocument}</span>
-                      <Button variant="outline" size="sm">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadId(selectedApplication.id_document_url)}
+                      >
                         <Download className="h-4 w-4 mr-2" />
-                        Download
+                        Download Document
                       </Button>
                     </div>
                   </div>
-
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setSelectedApplication(null)}
-                    >
-                      Close
-                    </Button>
-                    {selectedApplication.status === 'pending' && (
-                      <>
-                        <Button
-                          onClick={() => {
-                            handleApprove(selectedApplication.id);
-                            setSelectedApplication(null);
-                          }}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => {
-                            handleReject(selectedApplication.id);
-                            setSelectedApplication(null);
-                          }}
-                        >
-                          Reject
-                        </Button>
-                      </>
-                    )}
-                  </div>
                 </CardContent>
+                <CardFooter className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setSelectedApplication(null)}>
+                    Close
+                  </Button>
+                  {selectedApplication.status === 'pending' && (
+                    <>
+                      <Button
+                        onClick={() => {
+                          handleUpdateStatus(selectedApplication.id, 'approved');
+                          setSelectedApplication(null);
+                        }}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => {
+                          handleUpdateStatus(selectedApplication.id, 'rejected');
+                          setSelectedApplication(null);
+                        }}
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  )}
+                </CardFooter>
               </Card>
             </div>
           )}
         </div>
       </div>
-      
-      <Footer />
     </div>
   );
 };
