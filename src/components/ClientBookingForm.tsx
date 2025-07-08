@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
-import { Calendar, Clock, MessageSquare, User, Phone, Mail } from 'lucide-react';
+import { Calendar, Clock, MessageSquare, User, Phone, Mail, CreditCard } from 'lucide-react';
+import PayGatePaymentForm from './PayGatePaymentForm';
 
 interface ClientBookingFormProps {
   artistId: string;
@@ -45,6 +46,8 @@ const ClientBookingForm = ({
     client_email: ''
   });
   const [loading, setLoading] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [createdBookingId, setCreatedBookingId] = useState<string>('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -184,12 +187,8 @@ const ClientBookingForm = ({
         throw clientBookingError;
       }
 
-      toast({
-        title: "Booking submitted successfully!",
-        description: `Your booking request has been sent to ${artistName}. You'll be notified once they confirm.`,
-      });
-
-      onSuccess();
+      setCreatedBookingId(bookingData.id);
+      setShowPayment(true);
 
     } catch (error: any) {
       console.error('Booking error:', error);
@@ -205,6 +204,32 @@ const ClientBookingForm = ({
 
   // Get minimum date (today)
   const today = new Date().toISOString().split('T')[0];
+
+  const handlePaymentSuccess = () => {
+    toast({
+      title: "Booking submitted successfully!",
+      description: `Your booking request has been sent to ${artistName}. You'll be notified once they confirm.`,
+    });
+    onSuccess();
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPayment(false);
+    setCreatedBookingId('');
+  };
+
+  if (showPayment) {
+    return (
+      <PayGatePaymentForm
+        bookingId={createdBookingId}
+        amount={bookingFee}
+        currency="ZAR"
+        artistName={artistName}
+        onSuccess={handlePaymentSuccess}
+        onCancel={handlePaymentCancel}
+      />
+    );
+  }
 
   return (
     <Card className="w-full max-w-md mx-auto">

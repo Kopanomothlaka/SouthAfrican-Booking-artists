@@ -22,6 +22,8 @@ import ArtistProtectedRoute from "@/components/ArtistProtectedRoute";
 import AdminProtectedRoute from "@/components/AdminProtectedRoute";
 import PendingApproval from "./pages/PendingApproval";
 import ArtistDashboard from "./pages/ArtistDashboard";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PayGateTest from "./pages/PayGateTest";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +95,8 @@ const App = () => (
           <Route path="/login" element={<UserLogin />} />
           <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
+          <Route path="/paygate-test" element={<PayGateTest />} />
 
           {/* Protected Admin Route */}
           <Route element={<AdminProtectedRoute />}>
