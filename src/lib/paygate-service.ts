@@ -55,7 +55,7 @@ class PayGateService {
       });
 
       // Call our backend proxy instead of PayGate directly
-      const response = await axios.post('http://localhost:3001/api/paygate/initiate', {
+      const response = await axios.post('https://southafrican-booking-artists-1.onrender.com/api/paygate/initiate', {
         bookingId,
         amount,
         email,
